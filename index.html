@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Mapinguari - Terror 2D</title>
+<!-- Se for separar os arquivos, adicione: <link rel="stylesheet" href="style.css"> -->
+</head>
+<body>
+
+<div id="app">
+
+  <div id="game-container">
+
+    <canvas id="world" width="400" height="240"></canvas>
+
+    <!-- Slot para GIF animado de ação (usado quando a cena tiver gif_animacao) -->
+    <div id="stage">
+      <img id="protagonist-sprite" class="hidden pixel-art" alt="">
+    </div>
+
+    <div id="hud">
+      <div id="objetivo"></div>
+      <div class="dica" id="dica-controles">WASD/Setas: mover · SHIFT: correr · ESPAÇO: pular · E: interagir</div>
+    </div>
+
+    <div id="top-bar">
+      <button id="btn-log" class="pixel-btn top-btn">Histórico</button>
+      <button id="btn-restart" class="pixel-btn top-btn">Reiniciar</button>
+    </div>
+
+    <div id="ui-layer" class="hidden">
+      <div id="choices-container" class="hidden"></div>
+      <div id="dialogue-box" class="pixel-box">
+        <div id="portrait-container">
+          <img id="portrait-img" class="hidden pixel-art" alt="">
+          <span id="portrait-letter">L</span>
+        </div>
+        <div id="text-container">
+          <span id="character-name"></span>
+          <p id="dialogue-text"></p>
+          <div id="continue-hint" class="hidden">▼ toque / clique / ESPAÇO</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="log-modal" class="modal hidden">
+      <div class="modal-content pixel-box">
+        <h2>📜 Histórico</h2>
+        <div id="log-content"></div>
+        <button id="btn-close-log" class="pixel-btn" style="width:100%;text-align:center;">Fechar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTROLES TOUCH (aparecem em celulares/tablets) -->
+  <div id="touch-controls" class="hidden">
+    <div id="joystick" aria-label="Joystick">
+      <div id="joy-knob"></div>
+    </div>
+    <div id="touch-buttons">
+      <button id="tb-run"  class="touch-btn" aria-label="Correr">CORRER</button>
+      <button id="tb-jump" class="touch-btn" aria-label="Pular">PULAR</button>
+      <button id="tb-act"  class="touch-btn big" aria-label="Interagir">E</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Se for separar os arquivos, adicione: <script src="script.js"></script> -->
+</body>
+</html>
