@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Mapinguari - Terror 2D</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  body {
+    background-color: #0b0914;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  /* PIXEL ART: sem suavização em imagens, GIFs e no canvas */
+  .pixel-art, canvas, img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+  }
+
+  #game-container {
+    position: relative;
+    width: min(100%, 800px, calc((100dvh - 20px) * 5 / 3));
+    aspect-ratio: 5 / 3;
+    background-color: #181425;
+    border: 4px solid #3b2d54;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.9), 0 0 10px #5a3d7c;
+    overflow: hidden;
+    border-radius: 4px;
+  }
+
+  /* CAMADA 1: o mundo (canvas) */
+  #world {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: block;
+  }
+
+  /* CAMADA 2: slot para GIF de ação (opcional) */
+  #stage {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+  }
+  #protagonist-sprite {
+    max-height: 50%;
+    max-width: 40%;
+    object-fit: contain;
+  }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 20;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #f4b41b;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+    max-width: 55%;
+  }
+  #hud .dica { color: #9a8fb3; font-size: 10px; }
+
+  #top-bar {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+  }
+
+  /* CAMADA 3: interface de diálogo */
+  #ui-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pixel-box {
+    background-color: #120e1e;
+    border: 3px solid #f4b41b;
+    box-shadow: 0 4px 0 #7a5500, inset 0 0 0 2px #3a2800;
+    border-radius: 2px;
+    padding: 12px;
+  }
+
+  #dialogue-box {
+    display: flex;
+    gap: 14px;
+    min-height: 100px;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  #portrait-container {
+    width: 64px;
+    height: 64px;
+    background-color: #2b1f40;
+    border: 2px solid #e2a012;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 26px;
+    color: #f4b41b;
+    box-shadow: inset -3px -3px 0 #181026;
+    overflow: hidden;
+  }
+  #portrait-img { width: 100%; height: 100%; object-fit: cover; }
+
+  #text-container { flex-grow: 1; }
+
+  #character-name {
+    display: block;
+    font-weight: bold;
+    color: #f4b41b;
+    font-size: 14px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  #dialogue-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #e0e0e0;
+    min-height: 42px;
+  }
+
+  #continue-hint {
+    text-align: right;
+    font-size: 10px;
+    color: #7a5500;
+    margin-top: 2px;
+  }
+
+  #choices-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pixel-btn {
+    background-color: #251a3a;
+    color: #ffffff;
+    border: 2px solid #5a3d7c;
+    padding: 8px 12px;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #120c1d;
+    transition: all 0.1s ease;
+  }
+  .pixel-btn:hover {
+    background-color: #3b2a5c;
+    border-color: #f4b41b;
+    color: #f4b41b;
+    transform: translateY(-1px);
+  }
+  .pixel-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #120c1d;
+  }
+  .top-btn { padding: 4px 8px; font-size: 10px; }
+
+  /* MODAL DE HISTÓRICO */
+  .modal {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.88);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal-content {
+    width: 90%;
+    max-height: 85%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .modal-content h2 {
+    color: #f4b41b;
+    font-size: 16px;
+    border-bottom: 2px solid #3a2800;
+    padding-bottom: 6px;
+  }
+  #log-content { max-height: 250px; overflow-y: auto; padding-right: 6px; }
+  .log-entry {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    border-bottom: 1px dashed #3a2800;
+    padding-bottom: 6px;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 640px) {
+    #dialogue-text { font-size: 12px; }
+    #portrait-container { width: 48px; height: 48px; font-size: 20px; }
+    .pixel-btn { font-size: 11px; padding: 6px 8px; }
+    #dialogue-box { min-height: 80px; padding: 8px; }
+  }
+
+  /* ===== LAYOUT GERAL ===== */
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  html, body { height: 100%; touch-action: manipulation; overscroll-behavior: none; }
+  body { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+
+  /* ===== CONTROLES TOUCH ===== */
+  #touch-controls {
+    width: min(100%, 800px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px;
+    touch-action: none;
+  }
+  #joystick {
+    position: relative;
+    width: 128px; height: 128px;
+    border-radius: 50%;
+    background: rgba(37, 26, 58, 0.55);
+    border: 3px solid #5a3d7c;
+    box-shadow: inset 0 0 14px rgba(0,0,0,.7);
+    touch-action: none;
+    flex-shrink: 0;
+  }
+  #joy-knob {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 56px; height: 56px;
+    margin: -28px 0 0 -28px;
+    border-radius: 50%;
+    background: #3b2a5c;
+    border: 3px solid #f4b41b;
+    box-shadow: 0 3px 0 #120c1d;
+    pointer-events: none;
+    transition: transform .08s ease-out;
+  }
+  #joystick.ativo #joy-knob { transition: none; }
+
+  #touch-buttons {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas: "run jump" "act act";
+    gap: 8px;
+    align-items: center;
+    justify-items: center;
+  }
+  .touch-btn {
+    min-width: 72px; height: 48px;
+    padding: 0 10px;
+    background: rgba(37, 26, 58, 0.75);
+    color: #fff;
+    border: 3px solid #5a3d7c;
+    box-shadow: 0 4px 0 #120c1d;
+    font-weight: bold;
+    font-size: 12px;
+    touch-action: none;
+  }
+  .touch-btn.big { width: 72px; height: 72px; border-radius: 50%; font-size: 22px; border-color: #f4b41b; color: #f4b41b; }
+  .touch-btn.press { background: #3b2a5c; transform: translateY(3px); box-shadow: 0 1px 0 #120c1d; }
+  #tb-run  { grid-area: run; }
+  #tb-jump { grid-area: jump; }
+  #tb-act  { grid-area: act; }
+
+  /* Retrato (celular em pé): jogo em cima, controles embaixo */
+  body.touch #game-container {
+    width: min(100%, 800px, calc((100dvh - 200px) * 5 / 3));
+  }
+
+  /* Paisagem (celular deitado): controles flutuam sobre os cantos do jogo */
+  @media (orientation: landscape) and (max-height: 520px) {
+    body.touch #game-container { width: min(100%, 800px, calc((100dvh - 20px) * 5 / 3)); }
+    body.touch #touch-controls {
+      position: fixed;
+      left: 0; right: 0; bottom: 10px;
+      width: 100%;
+      padding: 0 16px;
+      z-index: 50;
+      pointer-events: none;
+    }
+    body.touch #touch-controls > * { pointer-events: auto; }
+    body.touch[data-modo="dialogo"] #touch-controls,
+    body.touch[data-modo="acao"] #touch-controls { opacity: 0; pointer-events: none; }
+    body.touch #touch-controls > * { pointer-events: auto; }
+    body.touch[data-modo="dialogo"] #touch-controls > * { pointer-events: none; }
+    #joystick { width: 112px; height: 112px; }
+  }
+
+  body.touch #hud { max-width: 48%; font-size: 9px; }
+  body.touch #hud .dica { font-size: 8px; }
+
+  /* Narrador: sem retrato, texto em itálico */
+  #dialogue-box.narrador #portrait-container { display: none; }
+  #dialogue-box.narrador #dialogue-text { font-style: italic; color: #cfc8e0; }
+  #dialogue-box.narrador #character-name { display: none; }
+
+  /* Celular em pé: o diálogo fica ABAIXO da imagem, sem cobrir o jogo */
+  @media (orientation: portrait) {
+    body.touch #game-container { aspect-ratio: auto; width: min(100%, 800px); }
+    body.touch #world { position: relative; inset: auto; width: 100%; height: auto; aspect-ratio: 5 / 3; }
+    body.touch #ui-layer { position: relative; padding: 8px; }
+    body.touch #stage { display: none; }
+    body.touch #dialogue-box { min-height: 84px; }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div id="game-container">
+
+    <canvas id="world" width="400" height="240"></canvas>
+
+    <!-- Slot para GIF animado de ação (usado quando a cena tiver gif_animacao) -->
+    <div id="stage">
+      <img id="protagonist-sprite" class="hidden pixel-art" alt="">
+    </div>
+
+    <div id="hud">
+      <div id="objetivo"></div>
+      <div class="dica" id="dica-controles">WASD/Setas: mover · SHIFT: correr · ESPAÇO: pular · E: interagir</div>
+    </div>
+
+    <div id="top-bar">
+      <button id="btn-log" class="pixel-btn top-btn">Histórico</button>
+      <button id="btn-restart" class="pixel-btn top-btn">Reiniciar</button>
+    </div>
+
+    <div id="ui-layer" class="hidden">
+      <div id="choices-container" class="hidden"></div>
+      <div id="dialogue-box" class="pixel-box">
+        <div id="portrait-container">
+          <img id="portrait-img" class="hidden pixel-art" alt="">
+          <span id="portrait-letter">L</span>
+        </div>
+        <div id="text-container">
+          <span id="character-name"></span>
+          <p id="dialogue-text"></p>
+          <div id="continue-hint" class="hidden">▼ toque / clique / ESPAÇO</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="log-modal" class="modal hidden">
+      <div class="modal-content pixel-box">
+        <h2>📜 Histórico</h2>
+        <div id="log-content"></div>
+        <button id="btn-close-log" class="pixel-btn" style="width:100%;text-align:center;">Fechar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTROLES TOUCH (aparecem em celulares/tablets) -->
+  <div id="touch-controls" class="hidden">
+    <div id="joystick" aria-label="Joystick">
+      <div id="joy-knob"></div>
+    </div>
+    <div id="touch-buttons">
+      <button id="tb-run"  class="touch-btn" aria-label="Correr">CORRER</button>
+      <button id="tb-jump" class="touch-btn" aria-label="Pular">PULAR</button>
+      <button id="tb-act"  class="touch-btn big" aria-label="Interagir">E</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   MAPINGUARI — Terror 2D amazônico
+   Visual novel + exploração (WASD / setas / joystick), pulo, corrida,
+   escuridão com lanterna, perseguição e finais ramificados.
+   O roteiro fica em ROTEIRO (cenas, falas, escolhas).
+   ========================================================================== */
+(() => {
+'use strict';
+
+/* --------------------------------------------------------------------------
+   CONFIGURAÇÃO
+   -------------------------------------------------------------------------- */
+const W = 400, H = 240;               // resolução interna (pixel art); o CSS amplia
+const VEL_ANDAR = 60, VEL_CORRER = 100;
+const PULO_DUR = 0.5, PULO_ALT = 14;
+
+// Sprites do Alex (tiras de quadros FW x FH)
+const FW = 32, FH = 35;
+const SPR = {
+  idle: { src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAAAjCAYAAADCDAUrAAAgaklEQVR4Xu18eYxd13nf79z93rcv82Y4MxwOKS4SaZKyKMkiJWtka7W1VDZMBXDkuHAaA0HRwkUUFDUSyyzyn220RmoDURrDS+I2ZgrVjhK7qW2KtjZTpiVTFPdthrO+efty77vrKb7zZhjZdcQ3fG8CFOgPEChwhvcs3znf+b7f9zuH4f/j/1m87+H3wfZs0f8//v1/iaee+oN/1rF88pOfxNvnZ9BEE9s2jeCF//bCP2v7gwDr5yM3HbgZqViMa1xGEET4+Ys/7+t7a8ETn3oCF89Pc8MwITEG1+2wzH1J3If7cOjQobV86oZA7V8+P8sNQweTgUa9zc68euKGvrUmPPsscOgQRnZNIJGI8TAKIIFB0wxsSU+wF17451mEE7t3IxO3eBhyeL4DjhZM02InXzuNKIrWNKQbwYEDB1CJKjwdjyGKJLTbLvvYIx/BqVOncPjw4Z4/ufYF+yyAQ8C29+1AJIVciRjgRfCDAExScfmtS2y9J2DPg3sQ2D6XQ47Q8xGEIbwgRG4oj+MvvsGmpqZw9OjRnidhrdV/4H5U7SZn4AhcF/Rnu20jHs/g7Oun1j6na0R6cgyZdJxHvg8eepGBgsMDQucI4Tr78M8bYuncBozvGedy04LUcmIoKzZ+B6So+8smPsy/8+y+scURrA9nfbQdcps0fRnA9H37IUBgZw7Efvrwm+otra7q7+AmVhWXeWSqjdmkWwXINqLURtm3ced/tHDewr3rBwYPd3+ItH3apgvKlaTRn5hCWqvArVSzPr+GDj35QLP5nyVMOGAdXOsAkBqdaR/HCNFqzS4iWKpBLDXRsB3c8/H7R6urvrgda9TLq81dhz0zDzqLeLUKs95C9eosnnnmmfVo8tfAYFerqM5chD1zFe7sDAzHh1du4IVv/Xfxu/v2rV83qotNMf+VS3OoXJoufjWبيانات اضافية... [/cite: 2]
